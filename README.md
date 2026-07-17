@@ -11,7 +11,7 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-Replace this paragraph with your own summary of what your version does.
+This version, **VibeCheck 1.0**, is a small content-based music recommender. Give it a favorite genre, a favorite mood, and a target energy level, and it scores every song in an 18-song catalog by how closely each one matches, then returns the top 5 with a plain-English reason for each pick. It doesn't learn from listening history or other users — it's a simulation built to show, step by step, how "taste data" turns into a ranked list, and where that kind of scoring logic can go wrong (like when one generalist high-energy song ends up recommended to almost everyone). See [`model_card.md`](model_card.md) for the full writeup of how it works, what it gets right, and where it breaks.
 
 ---
 
@@ -104,6 +104,7 @@ score(song, user) =
    python -m venv .venv
    source .venv/bin/activate      # Mac or Linux
    .venv\Scripts\activate         # Windows
+   ```
 
 2. Install dependencies
 
@@ -141,19 +142,19 @@ User profile: genre=pop, mood=happy, energy=0.8
 Top 5 recommendations:
 ------------------------------------------------------------
 1. Sunrise City (Neon Echo) - Score: 4.96
-   Because: matches your favorite genre (pop) (+2.0), matches your preferred mood (happy) (+1.0), energy (0.82) is close to your target of 0.80 (+1.96)
+   Because: genre match (+2.0), mood match (+1.0), energy similarity (+1.96)
 
 2. Gym Hero (Max Pulse) - Score: 3.74
-   Because: matches your favorite genre (pop) (+2.0), energy (0.93) is close to your target of 0.80 (+1.74)
+   Because: genre match (+2.0), energy similarity (+1.74)
 
 3. Rooftop Lights (Indigo Parade) - Score: 2.92
-   Because: matches your preferred mood (happy) (+1.0), energy (0.76) is close to your target of 0.80 (+1.92)
+   Because: mood match (+1.0), energy similarity (+1.92)
 
 4. Night Drive Loop (Neon Echo) - Score: 1.90
-   Because: energy (0.75) is close to your target of 0.80 (+1.90)
+   Because: energy similarity (+1.90)
 
 5. Neon Tide (DJ Halcyon) - Score: 1.84
-   Because: energy (0.88) is close to your target of 0.80 (+1.84)
+   Because: energy similarity (+1.84)
 ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
@@ -162,25 +163,23 @@ Top 5 recommendations:
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+**Weight Shift (Phase 4, Step 3):** I halved the genre weight (2.0 → 1.0) and doubled the energy weight's max (2.0 → 4.0) to test how sensitive the rankings are to the balance between them.
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+Result: for profiles where the requested genre or mood didn't exist in the catalog (like `genre: "opera"`), a completely taste-irrelevant song (**Velvet Hours**, an R&B/romantic track) started winning — purely because its energy value happened to land exactly on the user's target — beating a song that actually matched the user's stated mood. That told me the change made the recommendations *different*, not *more accurate*: it let a soft numeric signal (energy) override the two features a user explicitly said they cared about (genre, mood).
+
+I also checked whether it fixed the "same songs keep winning" pattern from Phase 4, Step 2 — it didn't. The same generalist songs still dominated several profiles' top 5; they just won for a different reason. I reverted back to the original 2.0 / 1.0 / 2.0 weights afterward. Full before/after terminal output for all 6 test profiles is in `model_card.md`'s Evaluation section.
 
 ---
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
+- **Tiny catalog:** only 18 songs, and most genres have just one song, so a genre match is really matching to one specific track, not a genre's typical range.
+- **No real audio or lyrics understanding:** every attribute (energy, valence, danceability, etc.) was estimated by hand, not measured from actual sound.
+- **Single-taste profiles:** a user can only have one fixed genre/mood/energy target, so it can't represent someone with genuinely split tastes (e.g., loves both chill lofi and intense rock).
+- **Silent mismatches:** an unmatched or misspelled genre/mood preference doesn't error or warn — it just quietly falls back to scoring on energy alone.
+- **Generalist-song bias:** a couple of "safe, central" high-energy songs get over-recommended across very different user profiles, simply because the catalog is too small to offer closer alternatives.
 
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+See [`model_card.md`](model_card.md) for the deeper analysis, including real experiment data behind each of these.
 
 ---
 
@@ -190,10 +189,9 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+Building this project made it very concrete how a recommender turns "taste" into a prediction: it's not magic, it's picking a handful of measurable attributes (genre, mood, energy), comparing them to what a user says they want, and adding up points. The moment that really drove this home was watching a single distance formula (`1 - |difference|`) decide whether a song "feels" close to what someone wanted — that same three-line formula quietly decides who gets recommended what.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+Bias shows up faster than I expected, even in a toy system. With only 18 songs and most genres represented once, a couple of generalist songs (the highest-energy pop tracks) kept getting recommended across totally different taste profiles — not because they were the best match, but because the catalog didn't have anything closer. Real platforms have this same risk at a much bigger scale: whatever the training data underrepresents becomes something the system quietly can't recommend well, and the system has no way to tell a user "we don't have anything good for you" — it just serves its best available guess and calls it a match. See [`model_card.md`](model_card.md) for the full reflection and evaluation.
 
 
 
